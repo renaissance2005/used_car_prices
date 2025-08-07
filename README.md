@@ -3,7 +3,7 @@
 > **Automate used car data extraction from [Carsome.my](https://www.carsome.my) with an intuitive, interactive dashboard!**  
 > Built for rapid car market analysis, data collection, and research.
 
-<img width="452" height="617" alt="GUI for AI App Challenge" src="https://github.com/user-attachments/assets/c8540298-74fd-484b-a198-42d43be4576c" />
+<img width="555" height="617" alt="GUI for AI App Challenge" src="https://github.com/user-attachments/assets/c8540298-74fd-484b-a198-42d43be4576c" />
 
 ---
 
@@ -46,7 +46,7 @@ It combines Streamlit’s visual power, Firecrawl’s structured web scraping, a
 ---
 ## 🛠️ Program Flow  
 
-<img width="1275" height="3840" alt="Mermaid Chart for AI App Challenge" src="https://github.com/user-attachments/assets/d10ac741-41d4-481b-9dd2-ad66af382d48" />
+<img width="9955" height="3540" alt="Mermaid Chart for AI App Challenge" src="https://github.com/user-attachments/assets/d10ac741-41d4-481b-9dd2-ad66af382d48" />
 
 1. 🛠️ **Environment & Setup:** Load environment variables, suppress logs, initialize Firecrawl, and set up SQLite cache.  
 2. 🔌 **Initialization:** Instantiate Streamlit page configuration and title.  
