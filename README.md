@@ -1,4 +1,4 @@
-# 🚗 Awesome Car Listings Scraper
+# 🚗 Awesome Car Listings
 
 > **Automate used car data extraction from [Carsome.my](https://www.carsome.my) with an intuitive, interactive dashboard!**  
 > Built for rapid car market analysis, data collection, and research.
@@ -8,7 +8,7 @@
 ## 🌟 Project Overview
 
 This project is a one-stop solution for scraping used car listings from Carsome.my, Malaysia’s largest car marketplace.  
-It combines Streamlit’s visual power, Firecrawl’s structured web scraping, and Playwright’s browser automation to extract car data **accurately and efficiently**, even across multiple paginated result pages.
+It combines Streamlit’s visual power, Firecrawl’s structured web scraping, and Selenium’s browser automation to extract car data **accurately and efficiently**, even across multiple paginated result pages.
 
 ---
 
@@ -80,9 +80,9 @@ It combines Streamlit’s visual power, Firecrawl’s structured web scraping, a
 
 ## 🚀 Solutions
 
-- **Playwright for Page Detection:** Uses Playwright to interact with the site like a real user, ensuring accurate page count extraction before scraping.
+- **Selenium for Page Detection:** Uses Selenium to interact with the site like a real user, ensuring accurate page count extraction before scraping.
+- **Interactive UI:** Streamlit’s selections let user decide on maximum pages to scrap and display the last and similar scrap before making decision. 
 - **Firecrawl for Scraping:** Keeps scraping decoupled from page navigation for maximum flexibility and error recovery.
-- **Interactive UI:** Streamlit’s sidebar and widgets make it easy for users to try different search settings.
 - **Robust Error Handling:** All critical actions are wrapped with clear messages for troubleshooting.
 
 ---
