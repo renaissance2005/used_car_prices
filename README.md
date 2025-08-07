@@ -42,6 +42,18 @@ It combines Streamlit’s visual power, Firecrawl’s structured web scraping, a
 - **📈 Designed for Analytics:** Results are structured for use in Excel, Power BI, or Python.
 
 ---
+## 🛠️ Program Flow  
+
+1. 🛠️ **Environment & Setup:** Load environment variables, suppress logs, initialize Firecrawl, and set up SQLite cache.  
+2. 🔌 **Initialization:** Instantiate Streamlit page configuration and title.  
+3. 🏷️ **User Inputs & URL Construction:** Collect Brand, Model, and Max Mileage; build Carsome search URL.  
+4. 💾 **Cache Lookup:** Query SQLite cache for previous results; if found, display cached CSV with download button.  
+5. 🌐 **Pagination Detection:** Optional Selenium step to detect `max_pages` by inspecting pagination controls.  
+6. 🔄 **Page Selection:** Allow users to choose how many pages to scrape (1..max_pages).  
+7. 🕸️ **Scraping Loop:** Iterate over selected pages, call Firecrawl’s `scrape_url` with Pydantic schema, and accumulate listings.  
+8. 🔍 **Post-Processing & Display:** Attach timestamps, create DataFrame, add row numbers, and show results in Streamlit.  
+9. 💾 **Export & Cache:** Save new CSV locally, provide download button, and insert record into SQLite cache.  
+10. 🚨 **Error Handling:** Wrap interactions in try/except to surface meaningful UI errors for selector changes or network issues.
 
 ## ⚙️ Technology Stack
 
@@ -49,7 +61,7 @@ It combines Streamlit’s visual power, Firecrawl’s structured web scraping, a
 |--------------------|--------------------------------------|
 | **Python 3.9+**    | Main programming language            |
 | **Streamlit**      | User interface & dashboard           |
-| **Playwright**     | Browser automation for pagination    |
+| **Selenium**     | Browser automation for pagination    |
 | **Firecrawl**      | Headless web scraping (API or SDK)   |
 | **Pandas**         | Data structuring & CSV export        |
 | **Pydantic**       | Data model validation                |
