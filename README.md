@@ -72,7 +72,23 @@ It combines Streamlit’s visual power, Firecrawl’s structured web scraping, a
 | **dotenv**         | Manage environment variables         |
 
 ---
+## ✅ Validations
+- Required inputs enforced: Brand, Model, Min Mileage, Max Mileage must be provided before actions are enabled.
+- Safe mileage parsing: Text → int with trimming, comma removal, non-negative clamp; invalid entries become None.
+- Range guard: Ensures min_mileage ≤ max_mileage (short-circuited to avoid None comparisons).
+- Action gating: Detect Pages is disabled until inputs are valid; Search is disabled until inputs are valid and pages have been detected.
+- Bounded page selection: “Pages to scrape” is constrained to 1..max_pages.
+- Helpful guidance: Contextual hints for missing brand/model, non-numeric mileage, or bad range.
+- Safe URL construction: Carsome URL is only built once all validations pass.
 
+## 🧯 Error Handling
+- Detect Pages failure: Wrapped in try/except; shows Failed to detect pages: … and prevents stale state use.
+- Scrape/API failure: Single generic except Exception surfaces ❌ Firecrawl request failed: … and halts with st.stop() to avoid partial results.
+- Cache load safety: Reading cached CSV is wrapped in try/except; missing/locked files report a friendly error instead of crashing.
+- Selenium resilience: Desktop viewport, overlay/scrim removal, explicit waits, scroll-into-view, JS-click fallbacks, visible/enabled input targeting, and JS value injection with input event dispatch to handle non-interactable fields.
+- Lightweight DB migration: Adds min_mileage column at startup if absent to avoid schema errors.
+
+---
 ## 🛠️ Challenges
 
 - **Dynamic Website Structure:** Carsome’s filters and pagination are built with modern JavaScript, making static scraping unreliable.
