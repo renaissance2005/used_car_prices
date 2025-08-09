@@ -59,7 +59,7 @@ class CarListing(BaseModel):
     listings: list[IndividualCar]
 
 # --- Helper: detect max pages via Selenium with filter applied ---
-def get_max_pages(url: str, min_mileage: int, max_mileage: int) -> int:
+def get_max_pages(url: str, max_mileage: int) -> int:
     driver = webdriver.Chrome()
     driver.set_window_size(1920, 1080)  # ensure desktop layout
     driver.get(url)
@@ -84,27 +84,31 @@ def get_max_pages(url: str, min_mileage: int, max_mileage: int) -> int:
     except (ElementClickInterceptedException, ElementNotInteractableException):
         driver.execute_script("arguments[0].click();", toggle)
 
-    # Enter min & max mileage values (there may be hidden duplicates; use visible ones)
+    # Set only the MAX mileage value (leave MIN at default 0 via URL)
     inputs = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "input.mod-car-mileage__input-box__input")))
-    visible_inputs = [el for el in inputs if el.is_displayed() and el.is_enabled()]
-    # If we didn't get two visible inputs, fall back to all found
-    targets = visible_inputs if len(visible_inputs) >= 2 else inputs
+    inputs = [el for el in inputs if el.is_displayed() and el.is_enabled()]
 
-    # Assign values: assume 1st = min, 2nd = max when possible
-    vals = [str(min_mileage), str(max_mileage)]
-    for i, val in enumerate(vals):
-        if i < len(targets):
-            el = targets[i]
+    # Choose the rightmost input on screen as MAX (handles DOM order flips)
+    max_el = None
+    if inputs:
+        with_positions = []
+        for el in inputs:
             try:
-                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", el)
-                el.clear()
-                el.send_keys(val)
-            except (ElementNotInteractableException, JavascriptException):
-                # JS fallback to set value + dispatch input event
-                driver.execute_script(
-                    "arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('input', {bubbles:true}));",
-                    el, val
-                )
+                left = driver.execute_script("return arguments[0].getBoundingClientRect().left;", el)
+            except JavascriptException:
+                left = 0
+            with_positions.append((left, el))
+        with_positions.sort(key=lambda t: t[0])
+        max_el = with_positions[-1][1]
+        try:
+            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", max_el)
+            max_el.clear()
+            max_el.send_keys(str(max_mileage))
+        except (ElementNotInteractableException, JavascriptException):
+            driver.execute_script(
+                "arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('input', {bubbles:true}));",
+                max_el, str(max_mileage)
+            )
 
     # Click Apply (with JS fallback)
     apply_sel = "button.mod-car-filter__apply-btn"
@@ -119,6 +123,7 @@ def get_max_pages(url: str, min_mileage: int, max_mileage: int) -> int:
     # Read pagination (after modal closes/results reload)
     wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "nav[aria-label='Pagination Navigation']")))
     items = driver.find_elements(By.CSS_SELECTOR, "ul.v-pagination.theme--light li")
+    items = [li for li in items if li.is_displayed()]  # visible only
     pages = [int(li.text) for li in items if li.text.isdigit()]
     driver.quit()
     return max(pages) if pages else 1
@@ -128,12 +133,11 @@ st.set_page_config(page_title="Awesome Car Listings", page_icon="🚗")
 st.title("Awesome Car Listings")
 
 # Inputs — make them empty by default (NEW)
-brand = st.text_input("Brand", value="", placeholder="e.g., Perodua")  # NEW default empty
-model = st.text_input("Model", value="", placeholder="e.g., Myvi")      # NEW default empty
-min_mileage_str = st.text_input("Min Mileage (km)", value="", placeholder="e.g., 0")  # NEW
-max_mileage_str = st.text_input("Max Mileage (km)", value="", placeholder="e.g., 50000")  # NEW
+brand = st.text_input("Brand", value="", placeholder="e.g., Perodua")
+model = st.text_input("Model", value="", placeholder="e.g., Myvi")
+max_mileage_str = st.text_input("Max Mileage (km)", value="", placeholder="e.g., 50000")
 
-# Parse mileage inputs safely
+# Parse mileage input safely
 def parse_int(s: str):
     s = (s or "").replace(",", "").strip()
     if s == "":
@@ -143,33 +147,33 @@ def parse_int(s: str):
     except ValueError:
         return None
 
-min_mileage = parse_int(min_mileage_str)
 max_mileage = parse_int(max_mileage_str)
 
 # Validate required inputs (short-circuit to avoid None comparisons)
 brand_ok = bool(brand.strip())
 model_ok = bool(model.strip())
-miles_ok = (
-    (min_mileage is not None) and (max_mileage is not None) and (min_mileage <= max_mileage)
-)
+miles_ok = (max_mileage is not None)
 ready = brand_ok and model_ok and miles_ok
 
 # Build URL only when inputs are valid
 base_url = None
 if ready:
     base_url = (
-        f"https://www.carsome.my/buy-car/{brand.lower()}/{model.lower()}?mileage={min_mileage},{max_mileage}"
+        f"https://www.carsome.my/buy-car/{brand.lower()}/{model.lower()}?mileage=0,{max_mileage}"
     )
 else:
     # Show helpful hints about what is missing/invalid
     if not brand_ok or not model_ok:
         st.info("Enter both Brand and Model to proceed.")
-    if (min_mileage is None) or (max_mileage is None):
-        st.info("Enter numeric Min and Max mileage.")
-    elif (min_mileage is not None) and (max_mileage is not None) and (min_mileage > max_mileage):
-        st.warning("Min mileage must be less than or equal to Max mileage.")
+    if max_mileage is None:
+        st.info("Enter numeric Max mileage.")
 
 # Pagination detection
+if 'max_pages' not in st.session_state:
+    st.session_state.max_pages = None
+if 'cache_checked' not in st.session_state:  # ensure cache check runs after detection
+    st.session_state.cache_checked = False
+
 if 'max_pages' not in st.session_state:
     st.session_state.max_pages = None
 if 'cache_checked' not in st.session_state:  # NEW: ensure cache check runs after detection
@@ -180,11 +184,11 @@ detect_clicked = st.button('Detect Pages', disabled=not ready, key='btn_detect')
 if detect_clicked:
     # Extra safety: guard even if somehow triggered
     if not ready:
-        st.warning("Please fill in Brand, Model, and valid Min/Max Mileage first.")
+        st.warning("Please fill in Brand, Model, and valid Max Mileage first.")
     else:
         with st.spinner("Detecting max pages..."):
             try:
-                st.session_state.max_pages = get_max_pages(base_url, min_mileage, max_mileage)
+                st.session_state.max_pages = get_max_pages(base_url, max_mileage)
                 st.success(f"Max pages: {st.session_state.max_pages}")
             except Exception as e:
                 st.error(f"Failed to detect pages: {e}")
@@ -192,8 +196,8 @@ if detect_clicked:
 
         # After detection, check cache for this exact query (incl. min mileage)
         cur.execute(
-            "SELECT timestamp, filename FROM cache WHERE brand=? AND model=? AND min_mileage=? AND max_mileage=? ORDER BY timestamp DESC LIMIT 1",
-            (brand, model, min_mileage, max_mileage)
+            "SELECT timestamp, filename FROM cache WHERE brand=? AND model=? AND max_mileage=? ORDER BY timestamp DESC LIMIT 1",
+            (brand, model, max_mileage)
         )
         cache_row = cur.fetchone()
         st.session_state.cache_checked = True
@@ -210,7 +214,7 @@ if detect_clicked:
                 except Exception as e:
                     st.error(f"Failed to load cached file {prev_file}: {e}")
         else:
-            st.info("No previous results found for this exact Brand/Model/Min/Max combination.")
+            st.info("No previous results found for this exact Brand/Model/Max combination.")
 
 # Pages to scrape control
 if st.session_state.max_pages:
@@ -224,17 +228,17 @@ else:
 
 # Main Search
 # Disable until inputs are valid AND pages detected
-search_clicked = st.button('Search', disabled=not (ready and st.session_state.max_pages), key='btn_search')
+search_clicked = st.button('Srape Now', disabled=not (ready and st.session_state.max_pages), key='btn_search')
 if search_clicked:
     if not ready:
-        st.warning("Please fill in Brand, Model, and valid Min/Max Mileage first.")
+        st.warning("Please fill in Brand, Model, and valid Max Mileage first.")
         st.stop()
     if not st.session_state.max_pages:
         st.warning("Please click 'Detect Pages' first.")
         st.stop()
 
     all_listings = []
-    st.write(f"Scraping {pages_to_scrape} page(s) for {brand} {model} — {min_mileage:,} to {max_mileage:,} km")
+    st.write(f"Scraping {pages_to_scrape} page(s) for {brand} {model} — up to {max_mileage:,} km")
     for page in range(1, pages_to_scrape+1):
         page_url = f"{base_url}&pageNo={page}"
         try:
@@ -263,13 +267,12 @@ if search_clicked:
         df.insert(0, 'No.', range(1, len(df)+1))
         st.dataframe(df)
         ts = timestamp.strftime("%Y-%m-%d_%H-%M-%S")
-        fn = f"carsome_{brand}_{model}_{min_mileage}-{max_mileage}_{ts}.csv"
+        fn = f"listings_{brand}_{model}_upto{max_mileage}_{ts}.csv"
         df.to_csv(fn, index=False)
         csv_data = df.to_csv(index=False).encode('utf-8')
         st.download_button("📥 Download CSV", data=csv_data, file_name=fn, key='btn_dl_new')
         cur.execute(
-            "INSERT INTO cache (brand, model, min_mileage, max_mileage, timestamp, filename)"
-            " VALUES (?,?,?,?,?,?)",
-            (brand, model, min_mileage, max_mileage, ts, fn)
+            "INSERT INTO cache (brand, model, max_mileage, timestamp, filename) VALUES (?,?,?,?,?)",
+            (brand, model, max_mileage, ts, fn)
         )
         conn.commit()
